@@ -1,0 +1,5 @@
+rgb_topic: /device_0/sensor_1/Color_0/image/data
+depth_topic: /device_0/sensor_0/Depth_0/image/data
+rgb_info_topic: /device_0/sensor_1/Color_0/info/camera_info
+depth_info_topic: /device_0/sensor_0/Depth_0/info/camera_info
+imu_topic: /device_0/sensor_2/Gyro_0/imu/data
