@@ -54,7 +54,6 @@ def extract_data_from_bag(rosbag_path: str, target_directory: str, cfg: Dict[str
                 image = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
                 filename = f"depth/depth_{depth_count:06d}.npy"
                 depth_count += 1
-                breakpoint()
                 np.save(os.path.join(target_directory, filename), image)
                 depth_image_timestamps[filename] = timestamp
                 
