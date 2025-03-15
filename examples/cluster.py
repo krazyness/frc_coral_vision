@@ -68,7 +68,7 @@ class PointCloudProcessor:
             transformation[:3, 3] = mean_pos
             cylinder.transform(transformation)
 
-            cylinders_with_transforms.append((cylinder, transformation))
+            cylinders_with_transforms.append((cylinder, cluster_points, transformation))
 
         return cylinders_with_transforms
 
@@ -125,7 +125,7 @@ class PointCloudProcessor:
         for cluster_pcd in cluster_pcds:
             vis.add_geometry(cluster_pcd)
 
-        for cylinder, _ in cylinders_with_transforms:
+        for cylinder, _, _ in cylinders_with_transforms:
             vis.add_geometry(cylinder)
 
         vis.run()
@@ -146,12 +146,14 @@ if __name__ == "__main__":
 
     processor = PointCloudProcessor()
     cylinders_with_transforms = processor.cluster(points, camera_pose)
-
-    # Extract cluster points for R² computation
-    cluster_pcds = [o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points)) for _ in cylinders_with_transforms]
-
-    # Compute and apply R²-based coloring
-    processor.color_cylinders_by_r2(cylinders_with_transforms, cluster_pcds)
-
-    # Visualize
+    
+    cluster_pcds = []
+    for _, pts, _ in cylinders_with_transforms:
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(pts)
+        cluster_pcds.append(pcd)
+        
+    for cyl, pts, trans in cylinders_with_transforms:
+        print(processor.compute_cylinder_metrics(trans, pts))
+    
     processor.visualize(cluster_pcds, cylinders_with_transforms)
