@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 import open3d as o3d
 from sklearn.cluster import DBSCAN
@@ -70,7 +71,7 @@ class PointCloudProcessor:
 
             cylinders_with_transforms.append((cylinder, cluster_points, transformation))
 
-        return cylinders_with_transforms
+        return self.transform_cylinders_to_global_frame(camera_pose, cylinders_with_transforms)
 
     def compute_cylinder_metrics(self, transformation, cluster_points):
         cylinder_center = transformation[:3, 3]
@@ -127,10 +128,25 @@ class PointCloudProcessor:
 
         for cylinder, _, _ in cylinders_with_transforms:
             vis.add_geometry(cylinder)
+            
+        vis.add_geometry(o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.25, origin=np.array([0., 0., 0.])))
 
         vis.run()
         vis.destroy_window()
-
+        
+    def transform_cylinders_to_global_frame(self,  camera_pose: np.ndarray, cylinders_with_transforms: np.ndarray):
+        R_cam = camera_pose[:3, :3]
+        R_cam_homog = np.eye(4)
+        R_cam_homog[:3, :3] = R_cam
+                
+        outputs = []
+        for cyl, pts, trans in cylinders_with_transforms:
+            cylinder = cyl.transform(R_cam_homog)
+            points = (R_cam_homog @ np.hstack((pts, np.ones_like(pts[:, 0:1]))).T).T[:, :3]
+            transform = R_cam_homog @ trans
+            outputs.append((cylinder, points, transform))
+        
+        return outputs
 
 # Example Usage
 if __name__ == "__main__":
@@ -146,7 +162,7 @@ if __name__ == "__main__":
 
     processor = PointCloudProcessor()
     cylinders_with_transforms = processor.cluster(points, camera_pose)
-    
+        
     cluster_pcds = []
     for _, pts, _ in cylinders_with_transforms:
         pcd = o3d.geometry.PointCloud()

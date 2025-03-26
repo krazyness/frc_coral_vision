@@ -36,15 +36,21 @@ def load_tutorial_data(data_dir, frame_id):
     rgb = cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB)
 
     depth[depth > 2] = 0.
+    
+    fx, fy = depth_K[0, 0], depth_K[1, 1]
+    cx, cy = depth_K[0, 2], depth_K[1, 2]
+    H, W = depth.shape
 
-    fx, fy = depth_K[0,0], depth_K[1,1]  # Adjust based on your camera intrinsics
-    cx, cy = depth_K[0,2], depth_K[1,2]
-    intrinsics = o3d.camera.PinholeCameraIntrinsic(depth.shape[1], depth.shape[0], fx, fy, cx, cy)
+    # Generate point cloud
+    i, j = np.meshgrid(np.arange(W), np.arange(H))
+    z = depth
+    x = (i - cx) * z / fx
+    y = (j - cy) * z / fy
 
-    # Create point cloud
-    pcd = o3d.geometry.PointCloud.create_from_depth_image(o3d.geometry.Image(depth), intrinsics)
+    points = np.stack((x, y, z), axis=-1).reshape(-1, 3)
+    mask = (points[:, 2] > 0)
+    xyz_depth = points[mask]
 
-    xyz_depth = np.array(pcd.points)
     xyz_depth_homog = np.hstack((xyz_depth, np.ones_like(xyz_depth[:, 0:1]))).T
 
     xyz_color = (T_depth_color @ xyz_depth_homog)[:3].T
@@ -79,6 +85,7 @@ def load_tutorial_data(data_dir, frame_id):
 
 
     pcd_colored.transform(T_cam2world)
+    # o3d.visualization.draw_geometries([pcd_colored, o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.25, origin=np.array([0., 0., 0.]))])
     return pcd_colored
 
 def plot_clusters(points, labels):
