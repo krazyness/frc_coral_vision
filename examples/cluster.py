@@ -4,12 +4,18 @@ import open3d as o3d
 from sklearn.cluster import DBSCAN
 from sklearn.decomposition import PCA
 from sklearn.metrics import r2_score
+from networktables import NetworkTables
 import matplotlib.cm as cm
+import logging
 
 class PointCloudProcessor:
     def __init__(self, cylinder_radius=0.01, cylinder_height=1.0):
         self.cylinder_radius = cylinder_radius
         self.cylinder_height = cylinder_height
+
+        logging.basicConfig(level=logging.DEBUG)
+        NetworkTables.initialize(server="roborio-5066-frc.local")
+        self.nt = NetworkTables.getTable("real-sense-camera")
 
     def cluster(self, points, camera_pose, eps=0.1, min_samples=15):
         """
@@ -147,6 +153,52 @@ class PointCloudProcessor:
             outputs.append((cylinder, points, transform))
         
         return outputs
+    def flush(): # NetworkTables Flush Method (updates all values)
+        NetworkTables.getDefault().flush() # flush
+
+    def publish_locations(self, cylinder_positions: List[tuple]): # Publish coral locations to NetworkTables
+        self.nt.getEntry("L2").setDoubleArray(cylinder_positions[0]) # Publish L2
+        self.nt.getEntry("L3").setDoubleArray(cylinder_positions[1]) # Publish L3
+        self.nt.getEntry("L4").setDoubleArray(cylinder_positions[2]) # Publish L4
+        self.flush() # Flush so values update
+
+    def select_location(self, cylinders: List[tuple]): # Find locations method
+        # Make lists to hold tuples for scoring positions in L3 and L4 #
+        L2_cylinders = []
+        L2_distances = []
+        L3_cylinders = []
+        L3_distances = []
+        L4_cylinders = []
+        L4_distances = []
+
+        # Go through every tuple and sort their levels by positions #
+        for position in cylinders:
+            z = position[2] # Height of cylinders
+            theta = position[3] # Angle of cylinders
+            if (z >= 30) and (z < 60): # L2 potential positions
+                if (theta >= 30) and (theta <= 50): # L2 potential angles
+                    L2_cylinders.append(position)
+                    L2_distances.append(np.linalg.norm(position[:3]))
+            elif (z >= 60) and (z < 90): # L3 potential positions
+                if (theta >= 30) and (theta <= 50): # L3 potential angles
+                    L3_cylinders.append(position)
+                    L3_distances.append(np.linalg.norm(position[:3]))
+            elif (z >= 90) and (z < 120): # L4 potential positions
+                if (theta >= 0) and (theta <= 10): # L4 potential angles
+                    L4_cylinders.append(position)
+                    L4_distances.append(np.linalg.norm(position[:3]))
+        
+        final_l2_pos = [-1, -1, -1, -1]
+        final_l3_pos = [-1, -1, -1, -1]
+        final_l4_pos = [-1, -1, -1,- 1]
+
+        if not len(L2_distances) == 0:
+            final_l2_pos = L2_cylinders[np.argmin(L2_distances)]
+        if not len(L3_distances) == 0:
+            final_l3_pos = L3_cylinders[np.argmin(L3_distances)]
+        if not len(L4_distances) == 0:
+            final_l4_pos = L4_cylinders[np.argmin(L4_distances)]
+        return final_l2_pos, final_l3_pos, final_l4_pos
 
 # Example Usage
 if __name__ == "__main__":
