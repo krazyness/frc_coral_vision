@@ -108,20 +108,8 @@ class CylinderDetector:
         self.clusterer.fit(filtered_points)
         labels = self.clusterer.labels_
         
-        # Assign a color to each cluster (noise labeled as -1 will be black)
         unique_labels = np.unique(labels)
-        color_map = {}
-        for label in unique_labels:
-            if label == -1:
-                color_map[label] = np.array([0.0, 0.0, 0.0])
-            else:
-                color_map[label] = np.array(plt.get_cmap("tab10")(label % 10)[:3])
-                
-        colors = np.array([color_map[label] for label in labels])
-        
-        # Update point cloud colors and points
-        pcd.points = o3d.utility.Vector3dVector(filtered_points)
-        pcd.colors = o3d.utility.Vector3dVector(colors)
+
         
         # Compute centroids for clusters (ignoring noise)
         centroids = []
@@ -141,6 +129,18 @@ class CylinderDetector:
             centroid_spheres.append(sphere)
 
         if visualize:
+            color_map = {}
+            for label in unique_labels:
+                if label == -1:
+                    color_map[label] = np.array([0.0, 0.0, 0.0])
+                else:
+                    color_map[label] = np.array(plt.get_cmap("tab10")(label % 10)[:3])
+                    
+            colors = np.array([color_map[label] for label in labels])
+            
+            # Update point cloud colors and points
+            pcd.points = o3d.utility.Vector3dVector(filtered_points)
+            pcd.colors = o3d.utility.Vector3dVector(colors)
             coord_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(
                 size=0.25, origin=np.array([0., 0., 0.])
             )
