@@ -6,6 +6,7 @@ else:
     from rs_python import RSCam
 
 
+from pickle_utils import load_from_pickle, dump_to_pickle
 from matplotlib import pyplot as plt
 import open3d as o3d
 import numpy as np
@@ -78,7 +79,7 @@ class CylinderDetector:
         self.clusterer = DBSCAN(eps=eps, min_samples=min_samples)
 
 
-    def get_all_cylinders(self, camera_height: float = 0, visualize=False):
+    def get_all_cylinders(self, camera_height: float = 0, visualize=False, save_vis_data_path=None):
                 
         if USE_OFFICIAL_PYREALSENSE:
             frames = self.pipeline.wait_for_frames()
@@ -128,7 +129,7 @@ class CylinderDetector:
             sphere.paint_uniform_color([0.25, 0.25, 0.25])  # white
             centroid_spheres.append(sphere)
 
-        if visualize:
+        if visualize or save_vis_data_path is not None:
             color_map = {}
             for label in unique_labels:
                 if label == -1:
@@ -144,11 +145,21 @@ class CylinderDetector:
             coord_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(
                 size=0.25, origin=np.array([0., 0., 0.])
             )
-            o3d.visualization.draw_geometries([pcd, coord_frame] + centroid_spheres)
+            if visualize:
+                o3d.visualization.draw_geometries([pcd, coord_frame] + centroid_spheres)
+            if save_vis_data_path is not None:
+                dump_to_pickle(save_vis_data_path, [pcd, coord_frame] + centroid_spheres)
+                
         return centroids
-
-
+    
 if __name__ == "__main__":
     detector = CylinderDetector()
     centroids = detector.get_all_cylinders(0.16256, True)
     print("Centroids:", centroids)
+
+
+    # example of dumping and loading data
+    # centroids = detector.get_all_cylinders(0.16256, False, "debug.pickle")
+    
+    # viz_data = load_from_pickle("debug.pickle")
+    # o3d.visualization.draw_geometries(viz_data)
