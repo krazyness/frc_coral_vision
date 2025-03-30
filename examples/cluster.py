@@ -15,7 +15,7 @@ class PointCloudProcessor:
 
         logging.basicConfig(level=logging.DEBUG)
         NetworkTables.initialize(server="roborio-5066-frc.local")
-        self.nt = NetworkTables.getTable("real-sense-camera")
+        self.nt = NetworkTables.getDefault().getTable("real-sense-camera")
 
     def cluster(self, points, camera_pose, eps=0.1, min_samples=15):
         """
@@ -153,8 +153,12 @@ class PointCloudProcessor:
             outputs.append((cylinder, points, transform))
         
         return outputs
+    
+    def get_camera_height(self):
+        return self.nt.getEntry("Camera Height").getDouble(0.16256)
+
     def flush(): # NetworkTables Flush Method (updates all values)
-        NetworkTables.getDefault().flush() # flush
+        NetworkTables.flush()
 
     def publish_locations(self, cylinder_positions: List[tuple]): # Publish coral locations to NetworkTables
         self.nt.getEntry("L2").setDoubleArray(cylinder_positions[0]) # Publish L2
@@ -173,24 +177,24 @@ class PointCloudProcessor:
 
         # Go through every tuple and sort their levels by positions #
         for position in cylinders:
-            z = position[2] # Height of cylinders
+            cylinder_height = position[2] + self.get_camera_height() # Height of cylinders
             theta = position[3] # Angle of cylinders
-            if (z >= 30) and (z < 60): # L2 potential positions
+            if (cylinder_height >= 30) and (cylinder_height < 60): # L2 potential positions
                 if (theta >= 30) and (theta <= 50): # L2 potential angles
                     L2_cylinders.append(position)
                     L2_distances.append(np.linalg.norm(position[:3]))
-            elif (z >= 60) and (z < 90): # L3 potential positions
+            elif (cylinder_height >= 60) and (cylinder_height < 90): # L3 potential positions
                 if (theta >= 30) and (theta <= 50): # L3 potential angles
                     L3_cylinders.append(position)
                     L3_distances.append(np.linalg.norm(position[:3]))
-            elif (z >= 90) and (z < 120): # L4 potential positions
+            elif (cylinder_height >= 90) and (cylinder_height < 120): # L4 potential positions
                 if (theta >= 0) and (theta <= 10): # L4 potential angles
                     L4_cylinders.append(position)
                     L4_distances.append(np.linalg.norm(position[:3]))
         
-        final_l2_pos = [-1, -1, -1, -1]
-        final_l3_pos = [-1, -1, -1, -1]
-        final_l4_pos = [-1, -1, -1,- 1]
+        final_l2_pos = [-1, -1, -1, 0]
+        final_l3_pos = [-1, -1, -1, 0]
+        final_l4_pos = [-1, -1, -1, 0]
 
         if not len(L2_distances) == 0:
             final_l2_pos = L2_cylinders[np.argmin(L2_distances)]
@@ -198,7 +202,7 @@ class PointCloudProcessor:
             final_l3_pos = L3_cylinders[np.argmin(L3_distances)]
         if not len(L4_distances) == 0:
             final_l4_pos = L4_cylinders[np.argmin(L4_distances)]
-        return final_l2_pos, final_l3_pos, final_l4_pos
+        self.publish_locations(final_l2_pos, final_l3_pos, final_l4_pos)
 
 # Example Usage
 if __name__ == "__main__":
